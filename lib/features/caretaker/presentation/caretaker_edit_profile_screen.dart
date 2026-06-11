@@ -28,18 +28,10 @@ const _kPresetLabels = [
 ];
 
 /// 业务属性标签（不计入特色标签 3 个上限）
-const _kBusinessAttributeLabels = [
-  '接受大型犬',
-  '具备医疗/喂药经验',
-];
+const _kBusinessAttributeLabels = ['接受大型犬', '具备医疗/喂药经验'];
 
 /// 系统维护标签，用户不可自选（通过考核/履约等自动授予）
-const _kSystemManagedLabels = {
-  '实名认证',
-  '平台认证',
-  '10+次服务',
-  '50+次服务',
-};
+const _kSystemManagedLabels = {'实名认证', '平台认证', '10+次服务', '50+次服务'};
 
 bool _isUserSelectableLabel(String label) =>
     !_kSystemManagedLabels.contains(label);
@@ -83,8 +75,7 @@ class _CaretakerEditProfileScreenState
   @override
   void initState() {
     super.initState();
-    _nicknameCtrl =
-        TextEditingController(text: widget.profile.nickname);
+    _nicknameCtrl = TextEditingController(text: widget.profile.nickname);
     _avatarUrl = widget.profile.avatarUrl;
     final allLabels = widget.profile.certLabels
         .where(_isUserSelectableLabel)
@@ -102,8 +93,9 @@ class _CaretakerEditProfileScreenState
     final profileDataSource = CaretakerProfileRemoteDataSource(client);
     final profileRepo = CaretakerProfileRepositoryImpl(profileDataSource);
     _updateProfileUseCase = UpdateProfileUseCase(profileRepo);
-    _uploadImageUseCase =
-        UploadImageUseCase(UploadRemoteDataSource(http.Client()));
+    _uploadImageUseCase = UploadImageUseCase(
+      UploadRemoteDataSource(http.Client()),
+    );
 
     // 档案昵称为空时（新用户），从本地读取注册时的昵称预填
     if (widget.profile.nickname.isEmpty) {
@@ -126,8 +118,10 @@ class _CaretakerEditProfileScreenState
 
   Future<void> _pickAvatar() async {
     final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
     if (picked == null || !mounted) return;
 
     final file = File(picked.path);
@@ -174,9 +168,12 @@ class _CaretakerEditProfileScreenState
     final gcjLng = (result['longitude'] as num).toDouble();
     final (wgsLat, wgsLng) = _gcj02ToWgs84(gcjLat, gcjLng);
 
-    final city = result['city']?.toString() ?? '';
-    final district = result['district']?.toString() ?? '';
-    final label = '$city$district'.isEmpty ? null : '$city$district';
+    final label = _buildResidentAddress(
+      province: result['province']?.toString(),
+      city: result['city']?.toString(),
+      district: result['district']?.toString(),
+      detailAddress: result['detailAddress']?.toString(),
+    );
 
     setState(() {
       _residentAddress = label;
@@ -185,26 +182,56 @@ class _CaretakerEditProfileScreenState
     });
   }
 
+  String? _buildResidentAddress({
+    String? province,
+    String? city,
+    String? district,
+    String? detailAddress,
+  }) {
+    final segments = <String>[];
+    for (final raw in [province, city, district, detailAddress]) {
+      final value = raw?.trim();
+      if (value == null || value.isEmpty) {
+        continue;
+      }
+      if (segments.isNotEmpty && segments.last == value) {
+        continue;
+      }
+      segments.add(value);
+    }
+    if (segments.isEmpty) {
+      return null;
+    }
+    return segments.join();
+  }
+
   /// GCJ-02（高德坐标）→ WGS-84 近似转换，误差约 0–5 m。
   static (double lat, double lng) _gcj02ToWgs84(double gcjLat, double gcjLng) {
     const a = 6378245.0;
     const ee = 0.00669342162296594323;
 
     double transformLat(double x, double y) {
-      var ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y +
-          0.1 * x * y + 0.2 * sqrt(x.abs());
+      var ret =
+          -100.0 +
+          2.0 * x +
+          3.0 * y +
+          0.2 * y * y +
+          0.1 * x * y +
+          0.2 * sqrt(x.abs());
       ret += (20.0 * sin(6.0 * x * pi) + 20.0 * sin(2.0 * x * pi)) * 2.0 / 3.0;
       ret += (20.0 * sin(y * pi) + 40.0 * sin(y / 3.0 * pi)) * 2.0 / 3.0;
-      ret += (160.0 * sin(y / 12.0 * pi) + 320.0 * sin(y * pi / 30.0)) * 2.0 / 3.0;
+      ret +=
+          (160.0 * sin(y / 12.0 * pi) + 320.0 * sin(y * pi / 30.0)) * 2.0 / 3.0;
       return ret;
     }
 
     double transformLng(double x, double y) {
-      var ret = 300.0 + x + 2.0 * y + 0.1 * x * x +
-          0.1 * x * y + 0.1 * sqrt(x.abs());
+      var ret =
+          300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * sqrt(x.abs());
       ret += (20.0 * sin(6.0 * x * pi) + 20.0 * sin(2.0 * x * pi)) * 2.0 / 3.0;
       ret += (20.0 * sin(x * pi) + 40.0 * sin(x / 3.0 * pi)) * 2.0 / 3.0;
-      ret += (150.0 * sin(x / 12.0 * pi) + 300.0 * sin(x / 30.0 * pi)) * 2.0 / 3.0;
+      ret +=
+          (150.0 * sin(x / 12.0 * pi) + 300.0 * sin(x / 30.0 * pi)) * 2.0 / 3.0;
       return ret;
     }
 
@@ -214,7 +241,8 @@ class _CaretakerEditProfileScreenState
     final magic = sin(radLat);
     final sqrtMagic = sqrt(1 - ee * magic * magic);
     final finalDLat =
-        (dLat * 180.0) / ((a * (1 - ee)) / (sqrtMagic * sqrtMagic * sqrtMagic) * pi);
+        (dLat * 180.0) /
+        ((a * (1 - ee)) / (sqrtMagic * sqrtMagic * sqrtMagic) * pi);
     final finalDLng = (dLng * 180.0) / (a / sqrtMagic * cos(radLat) * pi);
     return (gcjLat - finalDLat, gcjLng - finalDLng);
   }
@@ -246,16 +274,16 @@ class _CaretakerEditProfileScreenState
                 ),
               ),
             ),
-            ..._kRangeOptions.map((o) => ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 20),
-                  title: Text(o.label),
-                  trailing: _serviceRangeKm == o.value
-                      ? const Icon(Icons.check_rounded,
-                          color: Color(0xFF004D36))
-                      : null,
-                  onTap: () => Navigator.pop(context, o.value),
-                )),
+            ..._kRangeOptions.map(
+              (o) => ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                title: Text(o.label),
+                trailing: _serviceRangeKm == o.value
+                    ? const Icon(Icons.check_rounded, color: Color(0xFF004D36))
+                    : null,
+                onTap: () => Navigator.pop(context, o.value),
+              ),
+            ),
             const SizedBox(height: 8),
           ],
         ),
@@ -292,28 +320,28 @@ class _CaretakerEditProfileScreenState
   }
 
   List<String> get _mergedCertLabels => [
-        ..._featureLabels,
-        ..._businessAttributes,
-      ].where(_isUserSelectableLabel).toList();
+    ..._featureLabels,
+    ..._businessAttributes,
+  ].where(_isUserSelectableLabel).toList();
 
   Future<void> _save() async {
     final nickname = _nicknameCtrl.text.trim();
     if (nickname.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('昵称不能为空')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('昵称不能为空')));
       return;
     }
     if (nickname.length > 20) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('昵称不超过 20 字')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('昵称不超过 20 字')));
       return;
     }
     if (_isUploadingAvatar) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('头像上传中，请稍候…')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('头像上传中，请稍候…')));
       return;
     }
 
@@ -365,8 +393,10 @@ class _CaretakerEditProfileScreenState
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: Color(0xFF5A6B62)),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Color(0xFF5A6B62),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -448,8 +478,11 @@ class _CaretakerEditProfileScreenState
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right,
-                            size: 18, color: Color(0xFFB0C4BC)),
+                        const Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: Color(0xFFB0C4BC),
+                        ),
                       ],
                     ),
                   ),
@@ -471,8 +504,11 @@ class _CaretakerEditProfileScreenState
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right,
-                            size: 18, color: Color(0xFFB0C4BC)),
+                        const Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: Color(0xFFB0C4BC),
+                        ),
                       ],
                     ),
                   ),
@@ -493,8 +529,11 @@ class _CaretakerEditProfileScreenState
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.verified_outlined,
-                          color: Color(0xFF004D36), size: 20),
+                      Icon(
+                        Icons.verified_outlined,
+                        color: Color(0xFF004D36),
+                        size: 20,
+                      ),
                       SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -515,8 +554,10 @@ class _CaretakerEditProfileScreenState
               subtitle: '勾选您的服务能力，宠主发单时可作为筛选条件',
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   child: Wrap(
                     spacing: 10,
                     runSpacing: 10,
@@ -527,7 +568,9 @@ class _CaretakerEditProfileScreenState
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: selected
                                 ? const Color(0xFF004D36)
@@ -557,8 +600,10 @@ class _CaretakerEditProfileScreenState
               subtitle: '最多选 3 个，展示在档案主页',
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   child: Wrap(
                     spacing: 10,
                     runSpacing: 10,
@@ -569,7 +614,9 @@ class _CaretakerEditProfileScreenState
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: selected
                                 ? const Color(0xFF004D36)
@@ -595,34 +642,39 @@ class _CaretakerEditProfileScreenState
                   const Divider(height: 1, color: Color(0xFFF0F4F2)),
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                     child: Row(
                       children: [
                         const Text(
                           '已选：',
                           style: TextStyle(
-                              fontSize: 13, color: Color(0xFF8BA49A)),
+                            fontSize: 13,
+                            color: Color(0xFF8BA49A),
+                          ),
                         ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Wrap(
                             spacing: 6,
                             children: _featureLabels
-                                .map((l) => Chip(
-                                      label: Text(l),
-                                      labelStyle: const TextStyle(
-                                          fontSize: 12, color: Color(0xFF004D36)),
-                                      backgroundColor:
-                                          const Color(0xFFD4EDE4),
-                                      deleteIconColor:
-                                          const Color(0xFF5A6B62),
-                                      onDeleted: () => _toggleFeatureLabel(l),
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                      padding: EdgeInsets.zero,
-                                      visualDensity:
-                                          VisualDensity.compact,
-                                    ))
+                                .map(
+                                  (l) => Chip(
+                                    label: Text(l),
+                                    labelStyle: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF004D36),
+                                    ),
+                                    backgroundColor: const Color(0xFFD4EDE4),
+                                    deleteIconColor: const Color(0xFF5A6B62),
+                                    onDeleted: () => _toggleFeatureLabel(l),
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    padding: EdgeInsets.zero,
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                )
                                 .toList(),
                           ),
                         ),
@@ -675,8 +727,7 @@ class _AvatarPicker extends StatelessWidget {
               backgroundColor: const Color(0xFFE8F2EF),
               backgroundImage: bg,
               child: bg == null
-                  ? const Icon(Icons.person,
-                      color: Color(0xFF004D36), size: 48)
+                  ? const Icon(Icons.person, color: Color(0xFF004D36), size: 48)
                   : null,
             ),
             if (isUploading)
@@ -691,7 +742,9 @@ class _AvatarPicker extends StatelessWidget {
                       width: 24,
                       height: 24,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -705,8 +758,11 @@ class _AvatarPicker extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
-                child: const Icon(Icons.camera_alt_rounded,
-                    color: Colors.white, size: 14),
+                child: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: Colors.white,
+                  size: 14,
+                ),
               ),
           ],
         ),
@@ -751,7 +807,9 @@ class _SectionCard extends StatelessWidget {
                 Text(
                   subtitle!,
                   style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF8BA49A)),
+                    fontSize: 12,
+                    color: Color(0xFF8BA49A),
+                  ),
                 ),
               ],
             ],
@@ -789,8 +847,7 @@ class _FieldRow extends StatelessWidget {
             width: 72,
             child: Text(
               label,
-              style: const TextStyle(
-                  fontSize: 14, color: Color(0xFF8BA49A)),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF8BA49A)),
             ),
           ),
           Expanded(child: child),

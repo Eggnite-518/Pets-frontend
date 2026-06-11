@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pets/core/auth/auth_token_store.dart';
 import 'package:pets/core/network/api_client.dart';
 import 'package:pets/core/network/api_exception.dart';
+import 'package:pets/core/utils/image_url_helper.dart';
 import 'package:pets/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:pets/features/auth/data/datasources/apply_caretaker_remote_data_source.dart';
 import 'package:pets/features/caretaker/data/datasources/caretaker_profile_remote_data_source.dart';
@@ -61,18 +62,139 @@ class OwnerProfileScreen extends StatelessWidget {
   }
 }
 
-class _UserInfoSection extends StatelessWidget {
+class _UserInfoSection extends StatefulWidget {
   const _UserInfoSection();
 
   @override
+  State<_UserInfoSection> createState() => _UserInfoSectionState();
+}
+
+class _UserInfoSectionState extends State<_UserInfoSection> {
+  final ApiClient _apiClient = ApiClient();
+
+  _OwnerProfileSummary? _profile;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _apiClient.close();
+    super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await _apiClient.get<_OwnerProfileSummary>(
+        path: '/api/v1/me/pet-owner',
+        dataParser: (json) => _OwnerProfileSummary.fromJson(
+          Map<String, dynamic>.from(json as Map),
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (response.isSuccess && response.data != null) {
+        setState(() {
+          _profile = response.data;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final fallback = await _buildLocalFallback();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _profile = fallback;
+        _errorMessage = response.message.isEmpty
+            ? '加载个人信息失败'
+            : response.message;
+        _isLoading = false;
+      });
+    } on ApiException catch (error) {
+      final fallback = await _buildLocalFallback();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _profile = fallback;
+        _errorMessage = error.message;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<_OwnerProfileSummary?> _buildLocalFallback() async {
+    final nickname = (await AuthTokenStore.instance.readNickname())?.trim();
+    final phone = (await AuthTokenStore.instance.readPhone())?.trim();
+    if ((nickname == null || nickname.isEmpty) &&
+        (phone == null || phone.isEmpty)) {
+      return null;
+    }
+    return _OwnerProfileSummary(
+      ownerId: 0,
+      nickname: nickname ?? '',
+      avatarUrl: '',
+      phone: phone ?? '',
+    );
+  }
+
+  String _maskPhone(String phone) {
+    final normalized = phone.trim();
+    if (normalized.length < 7) {
+      return normalized;
+    }
+    return '${normalized.substring(0, 3)}****${normalized.substring(normalized.length - 4)}';
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading && _profile == null) {
+      return const _UserInfoSkeleton();
+    }
+
+    if (_profile == null) {
+      return _UserInfoErrorCard(
+        message: _errorMessage ?? '加载个人信息失败',
+        onRetry: _loadProfile,
+      );
+    }
+
+    final profile = _profile!;
+    final nickname = profile.nickname.trim().isEmpty
+        ? '宠物主'
+        : profile.nickname.trim();
+    final phone = profile.phone.trim();
+    final avatarUrl = profile.avatarUrl.trim();
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const CircleAvatar(
+        CircleAvatar(
           radius: 34,
-          backgroundColor: Color(0xFFE8F2EF),
-          child: Icon(Icons.person, color: Color(0xFF004D36), size: 34),
+          backgroundColor: const Color(0xFFE8F2EF),
+          backgroundImage: avatarUrl.isNotEmpty
+              ? NetworkImage(avatarUrl)
+              : null,
+          child: avatarUrl.isEmpty
+              ? const Icon(Icons.person, color: Color(0xFF004D36), size: 34)
+              : null,
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -80,13 +202,13 @@ class _UserInfoSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                children: const [
+                children: [
                   Expanded(
                     child: Text(
-                      '林深见鹿',
+                      nickname,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF1A2621),
@@ -101,14 +223,28 @@ class _UserInfoSection extends StatelessWidget {
                 runSpacing: 4,
                 children: const [
                   _ProfileTag(text: '宠物主', color: Color(0xFFE8F2EF)),
-                  _ProfileTag(text: 'LV.4', color: Color(0xFFD4EDE4)),
                 ],
               ),
-              const SizedBox(height: 8),
-              const Text(
-                '138 **** 8888',
-                style: TextStyle(fontSize: 14, color: Color(0xFF8BA49A)),
-              ),
+              if (phone.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _maskPhone(phone),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF8BA49A),
+                  ),
+                ),
+              ],
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFB26A3C),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -140,6 +276,118 @@ class _ProfileTag extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _UserInfoSkeleton extends StatelessWidget {
+  const _UserInfoSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const CircleAvatar(radius: 34, backgroundColor: Color(0xFFE8F2EF)),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 120,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F2EF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                width: 64,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F2EF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                width: 100,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F2EF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _UserInfoErrorCard extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _UserInfoErrorCard({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEBEBEB)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF8A4D4D)),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('重试')),
+        ],
+      ),
+    );
+  }
+}
+
+class _OwnerProfileSummary {
+  final int ownerId;
+  final String nickname;
+  final String avatarUrl;
+  final String phone;
+
+  const _OwnerProfileSummary({
+    required this.ownerId,
+    required this.nickname,
+    required this.avatarUrl,
+    required this.phone,
+  });
+
+  factory _OwnerProfileSummary.fromJson(Map<String, dynamic> json) {
+    return _OwnerProfileSummary(
+      ownerId: _asInt(json['ownerId']),
+      nickname: json['nickname']?.toString() ?? '',
+      avatarUrl: normalizeRemoteImageUrl(json['avatarUrl']?.toString()),
+      phone: json['phone']?.toString() ?? '',
+    );
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 }
 

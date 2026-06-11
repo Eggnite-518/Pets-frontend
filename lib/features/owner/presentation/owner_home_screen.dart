@@ -28,7 +28,7 @@ class OwnerHomeScreen extends StatelessWidget {
             SizedBox(height: 16),
             _ServiceGrid(), // 上门喂养/遛狗入口
             SizedBox(height: 18),
-            _OrderSection(), // 订单列表与福利Banner
+            _OrderSection(), // 订单列表
           ],
         ),
       ),
@@ -232,7 +232,7 @@ class _ServiceCard extends StatelessWidget {
   }
 }
 
-/// 5. 订单模块 (标题 + 动态卡片列表 + 福利Banner)
+/// 5. 订单模块 (标题 + 动态卡片列表)
 class _OrderSection extends StatefulWidget {
   const _OrderSection();
 
@@ -357,8 +357,6 @@ class _OrderSectionState extends State<_OrderSection> {
               ),
             ),
           ),
-        const SizedBox(height: 12),
-        const _PromoBanner(),
       ],
     );
   }
@@ -607,65 +605,6 @@ class _OrderCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// 6. 新人福利 Banner
-class _PromoBanner extends StatelessWidget {
-  const _PromoBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF1EB),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '新人限时福利',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF222222),
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  '首单预约立减 ¥20',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
-                ),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF06A42),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            ),
-            child: const Text(
-              '立即领取',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
