@@ -250,8 +250,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           OrderCandidateItem(
             applicationId: selectedApplication!.applicationId,
             providerId: selectedApplication.providerId,
-            providerNickname: selectedApplication.providerNickname,
-            providerAvatarUrl: selectedApplication.providerAvatarUrl,
+            providerNickname: metrics.providerNickname.isNotEmpty
+                ? metrics.providerNickname
+                : selectedApplication.providerNickname,
+            providerAvatarUrl: metrics.providerAvatarUrl.isNotEmpty
+                ? metrics.providerAvatarUrl
+                : selectedApplication.providerAvatarUrl,
             applyStatus: selectedApplication.applyStatus,
             applyStatusDesc: '已录用',
             distanceKm: metrics.distanceKm,

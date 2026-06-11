@@ -22,6 +22,7 @@ class _CaretakerMessagesScreenState extends State<CaretakerMessagesScreen> {
 
   List<Conversation> _conversations = [];
   List<OfficialMessagePreview> _officialPreviews = const [];
+  List<OfficialMessageOrderRef> _officialOrders = const [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -61,9 +62,14 @@ class _CaretakerMessagesScreenState extends State<CaretakerMessagesScreen> {
 
     final previews = await _loadOfficialPreviews(conversations);
     if (!mounted) return;
+    final officialOrders = _officialMessageRepository.mergeOrderRefs(
+      _buildOfficialMessageOrders(conversations),
+      previews,
+    );
     setState(() {
       _conversations = conversations;
       _officialPreviews = previews;
+      _officialOrders = officialOrders;
       _isLoading = false;
     });
   }
@@ -102,7 +108,7 @@ class _CaretakerMessagesScreenState extends State<CaretakerMessagesScreen> {
       MaterialPageRoute<void>(
         builder: (_) => OfficialMessagesInboxScreen(
           isCaretaker: true,
-          orders: _buildOfficialMessageOrders(_conversations),
+          orders: _officialOrders,
           initialPreviews: _officialPreviews,
         ),
       ),

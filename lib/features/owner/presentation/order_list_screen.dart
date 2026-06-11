@@ -369,7 +369,7 @@ class _OwnerOrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final action = order.primaryAction;
-    final statusStyle = _OrderStatusStyle.fromStatus(order.status);
+    final statusStyle = _OrderStatusStyle.fromOrder(order);
 
     return Material(
       color: highlighted ? const Color(0xFFFFF8F0) : Colors.white,
@@ -613,6 +613,25 @@ class _OrderStatusStyle {
     required this.bgColor,
   });
 
+  factory _OrderStatusStyle.fromOrder(_OwnerOrder order) {
+    if (order.status == 1 && order.applications.isNotEmpty) {
+      return const _OrderStatusStyle(
+        label: '待处理',
+        color: Color(0xFFC97C22),
+        bgColor: Color(0xFFFFF2DF),
+      );
+    }
+    if (order.statusDesc.isNotEmpty) {
+      final base = _OrderStatusStyle.fromStatus(order.status);
+      return _OrderStatusStyle(
+        label: order.statusDesc,
+        color: base.color,
+        bgColor: base.bgColor,
+      );
+    }
+    return _OrderStatusStyle.fromStatus(order.status);
+  }
+
   factory _OrderStatusStyle.fromStatus(int status) {
     return switch (status) {
       1 => const _OrderStatusStyle(
@@ -674,6 +693,7 @@ class _OwnerOrder {
   final String serviceDate;
   final String totalAmount;
   final int status;
+  final String statusDesc;
   final List<_OwnerOrderPet> pets;
   final List<_OwnerOrderApplication> applications;
 
@@ -682,6 +702,7 @@ class _OwnerOrder {
     required this.serviceDate,
     required this.totalAmount,
     required this.status,
+    required this.statusDesc,
     required this.pets,
     required this.applications,
   });
@@ -754,6 +775,7 @@ class _OwnerOrder {
       serviceDate: json['serviceDate']?.toString() ?? '',
       totalAmount: json['totalAmount']?.toString() ?? '0',
       status: _asInt(json['status']),
+      statusDesc: json['statusDesc']?.toString() ?? '',
       pets: _parsePets(json['pets']),
       applications: _parseApplications(json['applications']),
     );

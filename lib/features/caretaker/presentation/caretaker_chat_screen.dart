@@ -3,12 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pets/core/auth/auth_token_store.dart';
 import 'package:pets/core/network/api_client.dart';
+import 'package:pets/core/utils/image_url_helper.dart';
 
+import '../data/datasources/caretaker_dashboard_remote_data_source.dart';
 import '../data/datasources/conversation_remote_data_source.dart';
 import '../data/datasources/caretaker_profile_remote_data_source.dart';
+import '../data/repositories/caretaker_dashboard_repository_impl.dart';
 import '../data/repositories/conversation_repository_impl.dart';
 import '../data/repositories/caretaker_profile_repository_impl.dart';
 import '../domain/entities/chat_message.dart';
+import '../domain/usecases/get_caretaker_order_detail_use_case.dart';
 import '../domain/usecases/get_chat_messages_use_case.dart';
 import '../domain/usecases/get_caretaker_profile_use_case.dart';
 import '../domain/usecases/send_chat_message_use_case.dart';
@@ -37,6 +41,7 @@ class _CaretakerChatScreenState extends State<CaretakerChatScreen> {
   late final GetChatMessagesUseCase _getChatMessagesUseCase;
   late final SendChatMessageUseCase _sendChatMessageUseCase;
   late final GetCaretakerProfileUseCase _getProfileUseCase;
+  late final GetCaretakerOrderDetailUseCase _getOrderDetailUseCase;
 
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -47,6 +52,7 @@ class _CaretakerChatScreenState extends State<CaretakerChatScreen> {
   String? _errorMessage;
   String _myNickname = '';
   String _myAvatarUrl = '';
+  String _peerAvatarUrl = '';
   Timer? _pollTimer;
 
   @override
@@ -61,10 +67,16 @@ class _CaretakerChatScreenState extends State<CaretakerChatScreen> {
       CaretakerProfileRemoteDataSource(client),
     );
     _getProfileUseCase = GetCaretakerProfileUseCase(profileRepo);
+    final dashboardRepo = CaretakerDashboardRepositoryImpl(
+      CaretakerDashboardRemoteDataSource(client),
+    );
+    _getOrderDetailUseCase = GetCaretakerOrderDetailUseCase(dashboardRepo);
     AuthTokenStore.instance.readNickname().then((n) {
       if (mounted && n != null) setState(() => _myNickname = n);
     });
+    _peerAvatarUrl = normalizeRemoteImageUrl(widget.peerAvatarUrl);
     _loadMyProfile();
+    _loadPeerAvatar();
     _loadMessages();
     _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!_isSending && mounted) {
@@ -79,8 +91,28 @@ class _CaretakerChatScreenState extends State<CaretakerChatScreen> {
     result.when(
       success: (profile) => setState(() {
         if (profile.nickname.isNotEmpty) _myNickname = profile.nickname;
-        _myAvatarUrl = profile.avatarUrl;
+        _myAvatarUrl = normalizeRemoteImageUrl(profile.avatarUrl);
       }),
+      failure: (_) {},
+    );
+  }
+
+  Future<void> _loadPeerAvatar() async {
+    final orderId = (widget.orderId ?? widget.conversationId).trim();
+    if (orderId.isEmpty) {
+      return;
+    }
+
+    final result = await _getOrderDetailUseCase(orderId);
+    if (!mounted) return;
+    result.when(
+      success: (detail) {
+        final avatar = normalizeRemoteImageUrl(detail.owner.avatarUrl);
+        if (avatar.isEmpty) {
+          return;
+        }
+        setState(() => _peerAvatarUrl = avatar);
+      },
       failure: (_) {},
     );
   }
@@ -258,7 +290,7 @@ class _CaretakerChatScreenState extends State<CaretakerChatScreen> {
       itemBuilder: (_, index) => _MessageBubble(
         message: _messages[index],
         peerName: widget.peerName,
-        peerAvatarUrl: widget.peerAvatarUrl,
+        peerAvatarUrl: _peerAvatarUrl,
         myNickname: _myNickname,
         myAvatarUrl: _myAvatarUrl,
       ),

@@ -60,9 +60,45 @@ class OfficialMessageInboxRepository {
 
   const OfficialMessageInboxRepository(this._apiClient);
 
+  Future<List<OfficialMessagePreview>> loadInboxPreviews() async {
+    try {
+      final response = await _apiClient.get<List<OfficialMessagePreview>>(
+        path: '/api/v1/messages/official/inbox',
+        dataParser: (data) {
+          final list = data as List? ?? const [];
+          return list
+              .whereType<Map>()
+              .map(
+                (item) => OfficialMessagePreview(
+                  orderId: item['orderId']?.toString() ?? '',
+                  title: item['title']?.toString() ?? '',
+                  subtitle: item['subtitle']?.toString() ?? '',
+                  content: item['content']?.toString() ?? '',
+                  createdAt: item['createdAt']?.toString() ?? '',
+                  messageCount: _toInt(item['messageCount']),
+                ),
+              )
+              .where((preview) => preview.orderId.trim().isNotEmpty)
+              .toList();
+        },
+      );
+      final previews = response.data ?? const <OfficialMessagePreview>[];
+      final sorted = previews.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return sorted;
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<List<OfficialMessagePreview>> loadPreviews(
     List<OfficialMessageOrderRef> orders,
   ) async {
+    final inboxPreviews = await loadInboxPreviews();
+    if (inboxPreviews.isNotEmpty) {
+      return inboxPreviews;
+    }
+
     final uniqueOrders = <String, OfficialMessageOrderRef>{};
     for (final order in orders) {
       final orderId = order.orderId.trim();
@@ -78,6 +114,33 @@ class OfficialMessageInboxRepository {
     final values = previews.whereType<OfficialMessagePreview>().toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return values;
+  }
+
+  List<OfficialMessageOrderRef> mergeOrderRefs(
+    List<OfficialMessageOrderRef> conversationOrders,
+    List<OfficialMessagePreview> previews,
+  ) {
+    final merged = <String, OfficialMessageOrderRef>{
+      for (final order in conversationOrders)
+        if (order.orderId.trim().isNotEmpty) order.orderId: order,
+    };
+    for (final preview in previews) {
+      final orderId = preview.orderId.trim();
+      if (orderId.isEmpty) {
+        continue;
+      }
+      merged.putIfAbsent(
+        orderId,
+        () => OfficialMessageOrderRef(
+          orderId: orderId,
+          title: preview.title.isNotEmpty ? preview.title : '订单 #$orderId',
+          subtitle: preview.subtitle.isNotEmpty
+              ? preview.subtitle
+              : '订单 #$orderId',
+        ),
+      );
+    }
+    return merged.values.toList();
   }
 
   Future<List<OfficialMessageItem>> loadOrderMessages(String orderId) async {

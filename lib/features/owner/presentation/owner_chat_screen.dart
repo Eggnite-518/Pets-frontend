@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pets/core/auth/auth_token_store.dart';
 import 'package:pets/core/network/api_client.dart';
+import 'package:pets/core/utils/image_url_helper.dart';
 
 import '../../caretaker/data/datasources/conversation_remote_data_source.dart';
 import '../../caretaker/data/repositories/conversation_repository_impl.dart';
@@ -44,6 +45,8 @@ class _OwnerChatScreenState extends State<OwnerChatScreen> {
   bool _isSending = false;
   String? _errorMessage;
   String _myNickname = '';
+  String _myAvatarUrl = '';
+  String _peerAvatarUrl = '';
   Timer? _pollTimer;
 
   String? get _peerId =>
@@ -65,6 +68,8 @@ class _OwnerChatScreenState extends State<OwnerChatScreen> {
         setState(() => _myNickname = nickname);
       }
     });
+    _peerAvatarUrl = normalizeRemoteImageUrl(widget.peerAvatarUrl);
+    _loadAvatars();
     _loadMessages();
     _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!_isSending && mounted) {
@@ -79,6 +84,55 @@ class _OwnerChatScreenState extends State<OwnerChatScreen> {
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAvatars() async {
+    final client = ApiClient();
+    try {
+      final ownerResponse = await client.get<Map<String, dynamic>>(
+        path: '/api/v1/me/pet-owner',
+        dataParser: (data) => Map<String, dynamic>.from(data as Map),
+      );
+      if (ownerResponse.isSuccess && ownerResponse.data != null) {
+        final avatar = normalizeRemoteImageUrl(
+          ownerResponse.data!['avatarUrl']?.toString(),
+        );
+        final nickname = ownerResponse.data!['nickname']?.toString() ?? '';
+        if (mounted) {
+          setState(() {
+            if (avatar.isNotEmpty) {
+              _myAvatarUrl = avatar;
+            }
+            if (nickname.isNotEmpty) {
+              _myNickname = nickname;
+            }
+          });
+        }
+      }
+    } catch (_) {}
+
+    final peerId = _peerId;
+    if (peerId == null || widget.conversationId.isEmpty) {
+      return;
+    }
+
+    try {
+      final peerResponse = await client.get<Map<String, dynamic>>(
+        path:
+            '/api/v1/orders/${widget.conversationId}/reservations/$peerId',
+        dataParser: (data) => Map<String, dynamic>.from(data as Map),
+      );
+      if (!peerResponse.isSuccess || peerResponse.data == null || !mounted) {
+        return;
+      }
+      final avatar = normalizeRemoteImageUrl(
+        peerResponse.data!['providerAvatarUrl']?.toString(),
+      );
+      if (avatar.isEmpty) {
+        return;
+      }
+      setState(() => _peerAvatarUrl = avatar);
+    } catch (_) {}
   }
 
   Future<void> _loadMessages({bool silent = false}) async {
@@ -245,8 +299,9 @@ class _OwnerChatScreenState extends State<OwnerChatScreen> {
       itemBuilder: (_, index) => _OwnerMessageBubble(
         message: _messages[index],
         peerName: widget.peerName,
-        peerAvatarUrl: widget.peerAvatarUrl,
+        peerAvatarUrl: _peerAvatarUrl,
         myNickname: _myNickname,
+        myAvatarUrl: _myAvatarUrl,
       ),
     );
   }
@@ -314,12 +369,14 @@ class _OwnerMessageBubble extends StatelessWidget {
   final String peerName;
   final String peerAvatarUrl;
   final String myNickname;
+  final String myAvatarUrl;
 
   const _OwnerMessageBubble({
     required this.message,
     required this.peerName,
     required this.peerAvatarUrl,
     required this.myNickname,
+    required this.myAvatarUrl,
   });
 
   @override
@@ -389,6 +446,13 @@ class _OwnerMessageBubble extends StatelessWidget {
   }
 
   Widget _buildMyAvatar() {
+    if (myAvatarUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 18,
+        backgroundImage: NetworkImage(myAvatarUrl),
+        backgroundColor: const Color(0xFFE8F2EF),
+      );
+    }
     return _buildInitialAvatar(
       myNickname,
       const Color(0xFFE8F2EF),

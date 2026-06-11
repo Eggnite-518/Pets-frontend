@@ -367,14 +367,18 @@ class _HomeOrderItem {
   final String serviceDate;
   final String addressSnapshot;
   final int status;
+  final String statusDesc;
   final List<_HomeOrderPet> pets;
+  final int applicationCount;
 
   const _HomeOrderItem({
     required this.orderId,
     required this.serviceDate,
     required this.addressSnapshot,
     required this.status,
+    required this.statusDesc,
     required this.pets,
+    required this.applicationCount,
   });
 
   factory _HomeOrderItem.fromJson(Map<String, dynamic> json) {
@@ -383,6 +387,7 @@ class _HomeOrderItem {
       serviceDate: json['serviceDate']?.toString() ?? '',
       addressSnapshot: json['addressSnapshot']?.toString() ?? '',
       status: _asInt(json['status']),
+      statusDesc: json['statusDesc']?.toString() ?? '',
       pets:
           (json['pets'] as List?)
               ?.map(
@@ -392,8 +397,12 @@ class _HomeOrderItem {
               )
               .toList() ??
           const [],
+      applicationCount:
+          json['applications'] is List ? (json['applications'] as List).length : 0,
     );
   }
+
+  bool get _hasPendingApplications => status == 1 && applicationCount > 0;
 
   String get petNamesLabel =>
       pets.isEmpty ? '宠物服务' : pets.map((p) => p.petName).join('、');
@@ -401,20 +410,26 @@ class _HomeOrderItem {
   String get serviceLabel =>
       pets.isEmpty ? '上门服务' : pets.map((p) => p.petTypeDesc).join(' · ');
 
-  String get statusLabel => switch (status) {
-    1 => '悬赏中',
-    2 => '待支付',
-    3 => '待履约',
-    4 => '履约中',
-    5 => '待确认',
-    6 => '已完成',
-    7 => '履约受阻',
-    8 => '异常结束',
-    9 => '平台介入',
-    _ => '进行中',
-  };
+  String get statusLabel {
+    if (statusDesc.isNotEmpty) return statusDesc;
+    if (_hasPendingApplications) return '待处理';
+    return switch (status) {
+      1 => '悬赏中',
+      2 => '待支付',
+      3 => '待履约',
+      4 => '履约中',
+      5 => '待确认',
+      6 => '已完成',
+      7 => '履约受阻',
+      8 => '异常结束',
+      9 => '平台介入',
+      _ => '进行中',
+    };
+  }
 
-  Color get statusColor => switch (status) {
+  Color get statusColor {
+    if (_hasPendingApplications) return const Color(0xFFC97C22);
+    return switch (status) {
     1 => const Color(0xFFEA865F),
     4 => const Color(0xFF005A40),
     6 => const Color(0xFF616161),
@@ -422,9 +437,12 @@ class _HomeOrderItem {
     8 => const Color(0xFF616161),
     9 => const Color(0xFFB02A37),
     _ => const Color(0xFF005A40),
-  };
+    };
+  }
 
-  Color get statusBgColor => switch (status) {
+  Color get statusBgColor {
+    if (_hasPendingApplications) return const Color(0xFFFFF2DF);
+    return switch (status) {
     1 => const Color(0xFFFFF3EE),
     4 => const Color(0xFFE5F1ED),
     6 => const Color(0xFFEEEEEE),
@@ -432,7 +450,8 @@ class _HomeOrderItem {
     8 => const Color(0xFFF1F3F2),
     9 => const Color(0xFFFCE8EB),
     _ => const Color(0xFFE5F1ED),
-  };
+    };
+  }
 
   static int _asInt(Object? value) {
     if (value is int) return value;
