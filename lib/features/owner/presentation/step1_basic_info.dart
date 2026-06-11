@@ -613,7 +613,7 @@ class _TimeRangePickerSheetState extends State<_TimeRangePickerSheet> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  '上下滑动选择开始和结束时间，提交时会按 HH:mm 时间段保存。',
+                  '上下滑动选择开始和结束时间。',
                   style: TextStyle(
                     fontSize: 13,
                     height: 1.5,

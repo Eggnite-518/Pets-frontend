@@ -8,20 +8,16 @@ import 'package:pets/features/auth/data/datasources/apply_caretaker_remote_data_
 
 import 'caretaker_edit_profile_screen.dart';
 
-import '../data/datasources/caretaker_dashboard_remote_data_source.dart';
 import '../data/datasources/caretaker_deposit_remote_data_source.dart';
 import '../data/datasources/caretaker_profile_remote_data_source.dart';
-import '../data/repositories/caretaker_dashboard_repository_impl.dart';
 import '../data/repositories/caretaker_deposit_repository_impl.dart';
 import '../data/repositories/caretaker_profile_repository_impl.dart';
 import '../domain/entities/caretaker_deposit.dart';
 import '../domain/entities/caretaker_profile.dart';
 import '../domain/entities/caretaker_wallet.dart';
-import '../domain/usecases/get_availability_use_case.dart';
 import '../domain/usecases/get_caretaker_deposit_use_case.dart';
 import '../domain/usecases/get_caretaker_profile_use_case.dart';
 import '../domain/usecases/get_caretaker_wallet_use_case.dart';
-import '../domain/usecases/update_availability_use_case.dart';
 import '../domain/usecases/update_service_range_use_case.dart';
 
 import 'deposit_flow_helper.dart';
@@ -299,8 +295,6 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
               ),
               const SizedBox(height: 16),
               const _SwitchToOwnerCard(),
-              const SizedBox(height: 16),
-              const _MedalBanner(),
               const SizedBox(height: 40),
             ],
           ),
@@ -1056,13 +1050,6 @@ class _MenuList extends StatelessWidget {
             color: Color(0xFFF7F9F8),
             indent: 56,
           ),
-          const _OrderStateSwitchItem(),
-          const Divider(
-            height: 1,
-            thickness: 1,
-            color: Color(0xFFF7F9F8),
-            indent: 56,
-          ),
           _MenuListItem(
             icon: Icons.receipt_long_outlined,
             title: '收入明细',
@@ -1121,18 +1108,6 @@ class _MenuList extends StatelessWidget {
               onTap: () => context.push('/admin/review-appeals'),
             ),
           ],
-          const Divider(
-            height: 1,
-            thickness: 1,
-            color: Color(0xFFF7F9F8),
-            indent: 56,
-          ),
-          _MenuListItem(
-            icon: Icons.help_outline,
-            title: '帮助中心',
-            subtitle: '常见问题与操作指引',
-            onTap: () {},
-          ),
           const Divider(
             height: 1,
             thickness: 1,
@@ -1324,111 +1299,6 @@ class _MenuListItem extends StatelessWidget {
   }
 }
 
-// ─── 接单状态开关（已有接口，保持不变） ──────────────────────────────────────
-
-class _OrderStateSwitchItem extends StatefulWidget {
-  const _OrderStateSwitchItem();
-
-  @override
-  State<_OrderStateSwitchItem> createState() => _OrderStateSwitchItemState();
-}
-
-class _OrderStateSwitchItemState extends State<_OrderStateSwitchItem> {
-  bool _isReceivingOrders = true;
-  bool _isLoading = true;
-  bool _isUpdating = false;
-
-  late final GetAvailabilityUseCase _getAvailabilityUseCase;
-  late final UpdateAvailabilityUseCase _updateAvailabilityUseCase;
-
-  @override
-  void initState() {
-    super.initState();
-    final client = ApiClient();
-    final dataSource = CaretakerDashboardRemoteDataSource(client);
-    final repo = CaretakerDashboardRepositoryImpl(dataSource);
-    _getAvailabilityUseCase = GetAvailabilityUseCase(repo);
-    _updateAvailabilityUseCase = UpdateAvailabilityUseCase(repo);
-    _loadAvailability();
-  }
-
-  Future<void> _loadAvailability() async {
-    final result = await _getAvailabilityUseCase();
-    if (!mounted) return;
-    result.when(
-      success: (isAvailable) => setState(() {
-        _isReceivingOrders = isAvailable;
-        _isLoading = false;
-      }),
-      failure: (_) => setState(() => _isLoading = false),
-    );
-  }
-
-  Future<void> _toggleAvailability(bool value) async {
-    if (_isUpdating) return;
-    setState(() {
-      _isUpdating = true;
-      _isReceivingOrders = value;
-    });
-    final result = await _updateAvailabilityUseCase(isAvailable: value);
-    if (!mounted) return;
-    result.when(
-      success: (_) => setState(() => _isUpdating = false),
-      failure: (error) {
-        setState(() {
-          _isReceivingOrders = !value;
-          _isUpdating = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message), backgroundColor: Colors.red),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: const Icon(
-        Icons.storefront_outlined,
-        color: Color(0xFF004D36),
-        size: 24,
-      ),
-      title: const Text(
-        '接单状态',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: Color(0xFF1A2621),
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          _isLoading ? '加载中…' : (_isReceivingOrders ? '开启中' : '已休息'),
-          style: const TextStyle(fontSize: 13, color: Color(0xFF8BA49A)),
-        ),
-      ),
-      trailing: _isLoading
-          ? const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                color: Color(0xFF004D36),
-                strokeWidth: 2,
-              ),
-            )
-          : Switch(
-              value: _isReceivingOrders,
-              onChanged: _isUpdating ? null : _toggleAvailability,
-              activeThumbColor: Colors.white,
-              activeTrackColor: const Color(0xFF004D36),
-            ),
-    );
-  }
-}
-
 // ─── 错误条幅 ─────────────────────────────────────────────────────────────────
 
 class _ErrorBanner extends StatelessWidget {
@@ -1528,56 +1398,3 @@ class _SwitchToOwnerCard extends StatelessWidget {
   }
 }
 
-// ─── 勋章横幅（保持硬编码） ───────────────────────────────────────────────────
-
-class _MedalBanner extends StatelessWidget {
-  const _MedalBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF0EB),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.6),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.pets, color: Color(0xFFF06A42), size: 24),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '爱宠卫士勋章',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFD65C38),
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  '您的关怀已为 243 只小动物带来了温暖的陪伴。',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF806860),
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

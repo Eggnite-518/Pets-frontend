@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:pets/core/auth/auth_token_store.dart';
 
+import '../features/auth/presentation/forgot_password_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/admin/presentation/admin_review_appeals_screen.dart';
 import '../features/dispute/presentation/order_disputes_screen.dart';
@@ -50,9 +51,11 @@ class AppRoutes {
     redirect: (context, state) async {
       final token = await AuthTokenStore.instance.readToken();
       final hasToken = token != null && token.isNotEmpty;
-      final isLoginPage = state.matchedLocation == '/login';
+      final location = state.matchedLocation;
+      final isAuthPublicPage =
+          location == '/login' || location == '/forgot-password';
 
-      if (!hasToken && !isLoginPage) return '/login';
+      if (!hasToken && !isAuthPublicPage) return '/login';
 
       final roleType = await AuthTokenStore.instance.readRoleType();
       final userId = await AuthTokenStore.instance.readUserId();
@@ -63,7 +66,7 @@ class AppRoutes {
       }
 
       // 有 token 但停在登录页（如 App 被系统回收后重启），自动跳转到对应主页
-      if (hasToken && isLoginPage) {
+      if (hasToken && location == '/login') {
         if (roleType == 2 || roleType == 3) return '/caretaker';
         return '/home';
       }
@@ -72,6 +75,10 @@ class AppRoutes {
     },
     routes: <RouteBase>[
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, __) => const ForgotPasswordScreen(),
+      ),
       GoRoute(
         path: '/admin/review-appeals',
         builder: (_, __) => const AdminReviewAppealsScreen(),

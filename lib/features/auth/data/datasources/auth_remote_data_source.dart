@@ -47,11 +47,14 @@ class AuthRemoteDataSource {
     }
   }
 
-  Future<ApiResult<void>> sendCode({required String phone}) async {
+  Future<ApiResult<void>> sendCode({
+    required String phone,
+    String scene = 'login',
+  }) async {
     try {
       final response = await _apiClient.post<void>(
         path: '/api/v1/auth/send-code',
-        body: {'phone': phone},
+        body: {'phone': phone, 'scene': scene},
       );
 
       if (!response.isSuccess) {
@@ -162,6 +165,38 @@ class AuthRemoteDataSource {
       return ApiFailure(e);
     } catch (e) {
       return ApiFailure(ApiException('设置密码失败', cause: e));
+    }
+  }
+
+  Future<ApiResult<void>> resetPassword({
+    required String phone,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _apiClient.post<void>(
+        path: '/api/v1/auth/reset-password',
+        body: {
+          'phone': phone,
+          'code': code,
+          'newPassword': newPassword,
+        },
+      );
+
+      if (!response.isSuccess) {
+        return ApiFailure(
+          ApiException(
+            response.message,
+            businessCode: response.code?.toString(),
+          ),
+        );
+      }
+
+      return ApiSuccess<void>(null);
+    } on ApiException catch (e) {
+      return ApiFailure(e);
+    } catch (e) {
+      return ApiFailure(ApiException('重置密码失败', cause: e));
     }
   }
 

@@ -281,6 +281,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
+                  if (!_isCodeMode)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () => context.push('/forgot-password'),
+                        child: const Text('忘记密码？'),
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   if (_errorMessage != null)
                     Padding(

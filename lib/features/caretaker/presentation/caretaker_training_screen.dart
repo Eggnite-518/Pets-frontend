@@ -16,6 +16,7 @@ class _CaretakerTrainingScreenState extends State<CaretakerTrainingScreen> {
   late final CaretakerTrainingRemoteDataSource _ds;
 
   TrainingStatus? _status;
+  TrainingCurriculum? _curriculum;
   bool _isLoading = true;
   String? _error;
 
@@ -33,15 +34,31 @@ class _CaretakerTrainingScreenState extends State<CaretakerTrainingScreen> {
     });
     final result = await _ds.getStatus();
     if (!mounted) return;
-    result.when(
-      success: (s) => setState(() {
-        _status = s;
-        _isLoading = false;
-      }),
-      failure: (e) => setState(() {
-        _error = e.message;
-        _isLoading = false;
-      }),
+
+    await result.when(
+      success: (s) async {
+        TrainingCurriculum? curriculum;
+        if (s.realNameVerified) {
+          final curriculumResult = await _ds.getCurriculum();
+          curriculumResult.when(
+            success: (data) => curriculum = data,
+            failure: (_) {},
+          );
+        }
+        if (!mounted) return;
+        setState(() {
+          _status = s;
+          _curriculum = curriculum;
+          _isLoading = false;
+        });
+      },
+      failure: (e) {
+        if (!mounted) return;
+        setState(() {
+          _error = e.message;
+          _isLoading = false;
+        });
+      },
     );
   }
 
@@ -140,6 +157,7 @@ class _CaretakerTrainingScreenState extends State<CaretakerTrainingScreen> {
                         const SizedBox(height: 16),
                         _StepList(
                           status: _status!,
+                          curriculum: _curriculum,
                           onReviewMaterial: _reviewMaterial,
                           onGoAuth: _openAuth,
                           onStartMaterial: _openStudy,
@@ -313,16 +331,32 @@ class _StepTitle extends StatelessWidget {
 
 class _StepList extends StatelessWidget {
   final TrainingStatus status;
+  final TrainingCurriculum? curriculum;
   final VoidCallback onReviewMaterial;
   final VoidCallback onGoAuth;
   final VoidCallback onStartMaterial;
 
   const _StepList({
     required this.status,
+    this.curriculum,
     required this.onReviewMaterial,
     required this.onGoAuth,
     required this.onStartMaterial,
   });
+
+  String _learningSubtitle() {
+    if (!status.realNameVerified) {
+      return '完成实名认证后可开始学习';
+    }
+    final requiredCount = curriculum?.requiredMaterialCount ??
+        status.requiredMaterialCount;
+    final completedCount = curriculum?.completedMaterialCount ??
+        status.completedMaterialCount;
+    if (requiredCount <= 0) {
+      return '课程加载中，请稍后刷新';
+    }
+    return '已完成 $completedCount/$requiredCount 门 · 行为学/牵引/入户/应急';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -339,8 +373,7 @@ class _StepList extends StatelessWidget {
       _StepData(
         icon: Icons.menu_book_outlined,
         title: '学习培训材料',
-        subtitle:
-            '已完成 ${status.completedMaterialCount}/${status.requiredMaterialCount} 门 · 行为学/牵引/入户/应急',
+        subtitle: _learningSubtitle(),
         done: status.learningCompleted || status.isPassed,
         active: status.realNameVerified &&
             !status.learningCompleted &&

@@ -23,6 +23,8 @@ class ProviderDetailModel extends ProviderDetail {
     required super.levelTag,
     required super.certLabels,
     required super.reviewCount,
+    required super.punctualityAvg,
+    required super.professionalAvg,
   });
 
   factory ProviderDetailModel.fromJson(Map<String, dynamic> json) {
@@ -64,6 +66,8 @@ class ProviderDetailModel extends ProviderDetail {
               .toList()
           : const <String>[],
       reviewCount: _toInt(json['reviewCount']),
+      punctualityAvg: _toDouble(json['punctualityAvg']),
+      professionalAvg: _toDouble(json['professionalAvg']),
     );
   }
 

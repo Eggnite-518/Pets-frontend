@@ -155,6 +155,7 @@ class _ServiceCheckInScreenState extends State<ServiceCheckInScreen> {
 
   /// 5=待宠主确认，6=已完成；null 表示尚未拉取
   int? _orderStatus;
+  String _accessNote = '';
 
   _SubmitLocation? _cachedLocation;
   DateTime? _cachedLocationAt;
@@ -224,6 +225,7 @@ class _ServiceCheckInScreenState extends State<ServiceCheckInScreen> {
       success: (detail) {
         setState(() {
           _orderStatus = detail.orderStatus;
+          _accessNote = detail.requirementTags.accessNote.trim();
           if (_checklistNodeTypes.isEmpty && detail.checklistNodeTypes.isNotEmpty) {
             _checklistNodeTypes = List<int>.from(detail.checklistNodeTypes);
           }
@@ -240,7 +242,10 @@ class _ServiceCheckInScreenState extends State<ServiceCheckInScreen> {
     result.when(
       success: (detail) {
         final previous = _orderStatus;
-        setState(() => _orderStatus = detail.orderStatus);
+        setState(() {
+          _orderStatus = detail.orderStatus;
+          _accessNote = detail.requirementTags.accessNote.trim();
+        });
         if (previous == 5 && detail.orderStatus == 6) {
           _showSnackBar('宠主已确认完成，订单已结算');
         }
@@ -786,6 +791,11 @@ class _ServiceCheckInScreenState extends State<ServiceCheckInScreen> {
                       allCompleted: _allNodesCompleted,
                     ),
                   ),
+                  if (_accessNote.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: _AccessNoteBanner(accessNote: _accessNote),
+                    ),
                   if (_allNodesCompleted)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -1141,6 +1151,55 @@ class _EmergencyOption {
   final String subtitle;
 
   const _EmergencyOption(this.code, this.title, this.subtitle);
+}
+
+// ─── 门禁说明 ───────────────────────────────────────────────────────────────
+
+class _AccessNoteBanner extends StatelessWidget {
+  final String accessNote;
+
+  const _AccessNoteBanner({required this.accessNote});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F2EF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF9BC7B4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.key_outlined, size: 18, color: Color(0xFF004D36)),
+              SizedBox(width: 6),
+              Text(
+                '门禁说明',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF004D36),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            accessNote,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF1A2621),
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─── 进度头部 ───────────────────────────────────────────────────────────────

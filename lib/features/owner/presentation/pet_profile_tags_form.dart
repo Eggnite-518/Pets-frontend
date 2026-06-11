@@ -94,14 +94,15 @@ class _PetProfileTagsFormState extends State<PetProfileTagsForm> {
           )),
         ),
         const SizedBox(height: 12),
-        _MultiSelectChips(
+        _SingleSelectChips(
           title: '生理状态',
           options: PetPhysiologicalState.options,
-          selected: tags.physiologicalStates,
-          onChanged: (selected) => onChanged(PetProfileTags(
+          selected: tags.physiologicalState,
+          onSelect: (code) => onChanged(PetProfileTags(
             weightKg: tags.weightKg,
             ageGroup: tags.ageGroup,
-            physiologicalStates: selected,
+            physiologicalStates:
+                code == null ? const [] : <String>[code],
             socialFriendliness: tags.socialFriendliness,
             aggressionLevel: tags.aggressionLevel,
             outdoorBehaviors: tags.outdoorBehaviors,

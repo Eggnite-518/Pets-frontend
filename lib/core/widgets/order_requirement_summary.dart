@@ -11,9 +11,15 @@ class OrderRequirementSummary extends StatelessWidget {
     required this.requirementTags,
   });
 
+  bool get _hasVisibleContent =>
+      requirementTags.tags.isNotEmpty ||
+      requirementTags.accessNote.trim().isNotEmpty ||
+      requirementTags.emergencyContactName.trim().isNotEmpty ||
+      requirementTags.emergencyContactPhone.trim().isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
-    if (requirementTags.isEmpty) {
+    if (!_hasVisibleContent) {
       return const SizedBox.shrink();
     }
 

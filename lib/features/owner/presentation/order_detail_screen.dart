@@ -140,10 +140,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         }
         if (result.data.status == 1) {
           await _loadCandidates(result.data);
-        } else if (result.data.applications.isNotEmpty) {
-          setState(() {
-            _candidates = _fallbackCandidates(result.data.applications);
-          });
+        } else {
+          await _loadSelectedProviderMetrics(result.data);
         }
         if (result.data.status == 4 || result.data.status == 5) {
           await _loadFulfillmentProgress();
@@ -219,6 +217,55 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           await _loadDetail();
         }
       }
+    });
+  }
+
+  Future<void> _loadSelectedProviderMetrics(OrderDetail detail) async {
+    OrderDetailApplication? selectedApplication;
+    for (final application in detail.applications) {
+      if (application.applyStatus == 2) {
+        selectedApplication = application;
+        break;
+      }
+    }
+    if (selectedApplication == null) {
+      if (detail.applications.isNotEmpty) {
+        setState(() {
+          _candidates = _fallbackCandidates(detail.applications);
+        });
+      }
+      return;
+    }
+
+    final result = await _getProviderDetailUseCase.call(
+      detail.orderId,
+      selectedApplication.providerId,
+    );
+    if (!mounted) return;
+
+    if (result is ApiSuccess<ProviderDetail>) {
+      final metrics = result.data;
+      setState(() {
+        _candidates = [
+          OrderCandidateItem(
+            applicationId: selectedApplication!.applicationId,
+            providerId: selectedApplication.providerId,
+            providerNickname: selectedApplication.providerNickname,
+            providerAvatarUrl: selectedApplication.providerAvatarUrl,
+            applyStatus: selectedApplication.applyStatus,
+            applyStatusDesc: '已录用',
+            distanceKm: metrics.distanceKm,
+            rating: metrics.rating,
+            totalOrderCount: metrics.totalOrderCount,
+            creditScore: metrics.creditScore,
+          ),
+        ];
+      });
+      return;
+    }
+
+    setState(() {
+      _candidates = _fallbackCandidates(detail.applications);
     });
   }
 

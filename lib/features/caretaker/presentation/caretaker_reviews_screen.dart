@@ -66,7 +66,16 @@ class _CaretakerReviewsScreenState extends State<CaretakerReviewsScreen> {
     if (!mounted) return;
     statsResult.when(
       success: (stats) => setState(() => _stats = stats),
-      failure: (_) {},
+      failure: (_) => setState(() => _stats = const CaretakerReviewStats(
+        reviewCount: 0,
+        overallAvg: 0,
+        punctualityAvg: 0,
+        professionalAvg: 0,
+        lowScoreCount: 0,
+        lowScoreRate: 0,
+        recent30DayReviewCount: 0,
+        recent30DayLowScoreCount: 0,
+      )),
     );
 
     await _loadPage(1);
@@ -103,6 +112,38 @@ class _CaretakerReviewsScreenState extends State<CaretakerReviewsScreen> {
         _isLoadingMore = false;
       }),
     );
+
+    if (!mounted) return;
+    if (_stats != null && _stats!.reviewCount == 0 && _reviews.isNotEmpty) {
+      _applyStatsFromReviews();
+    }
+  }
+
+  void _applyStatsFromReviews() {
+    if (_reviews.isEmpty) return;
+    final count = _reviews.length;
+    double overall = 0;
+    double punctuality = 0;
+    double professional = 0;
+    var lowScoreCount = 0;
+    for (final item in _reviews) {
+      overall += item.overallScore;
+      punctuality += item.punctualityScore;
+      professional += item.professionalScore;
+      if (item.isLowScore) lowScoreCount++;
+    }
+    setState(() {
+      _stats = CaretakerReviewStats(
+        reviewCount: count,
+        overallAvg: overall / count,
+        punctualityAvg: punctuality / count,
+        professionalAvg: professional / count,
+        lowScoreCount: lowScoreCount,
+        lowScoreRate: lowScoreCount / count,
+        recent30DayReviewCount: _stats?.recent30DayReviewCount ?? 0,
+        recent30DayLowScoreCount: _stats?.recent30DayLowScoreCount ?? 0,
+      );
+    });
   }
 
   Future<void> _loadMore() async {
@@ -172,7 +213,16 @@ class _CaretakerReviewsScreenState extends State<CaretakerReviewsScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 children: [
-                  if (_stats != null) _StatsCard(stats: _stats!),
+                  _StatsCard(stats: _stats ?? const CaretakerReviewStats(
+                    reviewCount: 0,
+                    overallAvg: 0,
+                    punctualityAvg: 0,
+                    professionalAvg: 0,
+                    lowScoreCount: 0,
+                    lowScoreRate: 0,
+                    recent30DayReviewCount: 0,
+                    recent30DayLowScoreCount: 0,
+                  )),
                   const SizedBox(height: 16),
                   _FilterBar(current: _filter, onChanged: _changeFilter),
                   const SizedBox(height: 12),

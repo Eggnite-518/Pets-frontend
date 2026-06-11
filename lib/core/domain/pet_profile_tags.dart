@@ -8,6 +8,18 @@ class PetProfileTags {
   final List<String> indoorBehaviors;
   final List<String> healthTags;
 
+  /// 生理状态仅允许单选：已绝育与发情期互斥。
+  String? get physiologicalState {
+    if (physiologicalStates.isEmpty) return null;
+    if (physiologicalStates.contains(PetPhysiologicalState.neutered)) {
+      return PetPhysiologicalState.neutered;
+    }
+    if (physiologicalStates.contains(PetPhysiologicalState.inHeat)) {
+      return PetPhysiologicalState.inHeat;
+    }
+    return physiologicalStates.first;
+  }
+
   const PetProfileTags({
     this.weightKg,
     this.ageGroup,
@@ -55,7 +67,9 @@ class PetProfileTags {
     return PetProfileTags(
       weightKg: _toDouble(json['weightKg']),
       ageGroup: json['ageGroup']?.toString(),
-      physiologicalStates: _asStringList(json['physiologicalStates']),
+      physiologicalStates: _sanitizePhysiologicalStates(
+        _asStringList(json['physiologicalStates']),
+      ),
       socialFriendliness: _toInt(json['socialFriendliness']),
       aggressionLevel: json['aggressionLevel']?.toString(),
       outdoorBehaviors: _asStringList(json['outdoorBehaviors']),
@@ -101,6 +115,15 @@ class PetProfileTags {
   static List<String> _asStringList(dynamic value) {
     if (value is! List) return const [];
     return value.map((e) => e.toString()).toList();
+  }
+
+  static List<String> _sanitizePhysiologicalStates(List<String> states) {
+    final hasNeutered = states.contains(PetPhysiologicalState.neutered);
+    final hasInHeat = states.contains(PetPhysiologicalState.inHeat);
+    if (hasNeutered && hasInHeat) {
+      return const [PetPhysiologicalState.neutered];
+    }
+    return states;
   }
 }
 

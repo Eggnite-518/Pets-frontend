@@ -21,4 +21,13 @@ void main() {
     expect(tags.displayLabels, contains('过敏史'));
     expect(tags.displayLabels, contains('肢体残疾'));
   });
+
+  test('sanitizes conflicting physiological states from api response', () {
+    final tags = PetProfileTags.fromJson({
+      'physiologicalStates': ['NEUTERED', 'IN_HEAT'],
+    });
+
+    expect(tags.physiologicalStates, ['NEUTERED']);
+    expect(tags.physiologicalState, 'NEUTERED');
+  });
 }

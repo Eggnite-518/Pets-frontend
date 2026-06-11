@@ -19,6 +19,8 @@ class ProviderDetail {
   final String levelTag;
   final List<String> certLabels;
   final int reviewCount;
+  final double punctualityAvg;
+  final double professionalAvg;
 
   const ProviderDetail({
     required this.applicationId,
@@ -41,6 +43,8 @@ class ProviderDetail {
     required this.levelTag,
     required this.certLabels,
     required this.reviewCount,
+    required this.punctualityAvg,
+    required this.professionalAvg,
   });
 }
 

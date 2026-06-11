@@ -29,15 +29,26 @@ class TrainingStatus {
   });
 
   factory TrainingStatus.fromJson(Map<String, dynamic> json) {
+    final requiredMaterialCount =
+        (json['requiredMaterialCount'] as num?)?.toInt() ?? 0;
+    final completedMaterialCount =
+        (json['completedMaterialCount'] as num?)?.toInt() ?? 0;
+    final learningCompletedAt = json['learningCompletedAt'];
+    final learningCompleted = json['learningCompleted'] == true ||
+        (learningCompletedAt != null &&
+            learningCompletedAt.toString().isNotEmpty) ||
+        (requiredMaterialCount > 0 &&
+            completedMaterialCount >= requiredMaterialCount);
+
     return TrainingStatus(
       verifyStatus: (json['verifyStatus'] as num?)?.toInt() ?? 0,
       realNameVerified: json['realNameVerified'] as bool? ?? false,
-      learningCompleted: json['learningCompletedAt'] != null,
+      learningCompleted: learningCompleted,
       lastExamScore: (json['lastExamScore'] as num?)?.toInt(),
       lastExamPassed: json['lastExamPassed'] as bool?,
       resetReason: json['resetReason']?.toString(),
-      requiredMaterialCount: (json['requiredMaterialCount'] as num?)?.toInt() ?? 0,
-      completedMaterialCount: (json['completedMaterialCount'] as num?)?.toInt() ?? 0,
+      requiredMaterialCount: requiredMaterialCount,
+      completedMaterialCount: completedMaterialCount,
       learningProgressPercent:
           (json['learningProgressPercent'] as num?)?.toInt() ?? 0,
     );

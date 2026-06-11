@@ -112,6 +112,35 @@ Future<void> showProviderQualificationSheet(
                   children: [
                     Expanded(
                       child: _MetricTile(
+                        label: '历史总单',
+                        value: '${detail.totalOrderCount}',
+                        icon: Icons.history_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _MetricTile(
+                        label: '服务距离',
+                        value: '${detail.distanceKm.toStringAsFixed(1)} 公里',
+                        icon: Icons.place_outlined,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  '聚合评价',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A2621),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MetricTile(
                         label: '综合评分',
                         value: detail.rating.toStringAsFixed(1),
                         icon: Icons.star_outline_rounded,
@@ -120,13 +149,41 @@ Future<void> showProviderQualificationSheet(
                     const SizedBox(width: 10),
                     Expanded(
                       child: _MetricTile(
-                        label: '历史总单',
-                        value: '${detail.totalOrderCount}',
-                        icon: Icons.history_rounded,
+                        label: '历史评价',
+                        value: '${detail.reviewCount} 条',
+                        icon: Icons.rate_review_outlined,
                       ),
                     ),
                   ],
                 ),
+                if (detail.reviewCount > 0) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MetricTile(
+                          label: '准时度均值',
+                          value: detail.punctualityAvg.toStringAsFixed(1),
+                          icon: Icons.schedule_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _MetricTile(
+                          label: '专业度均值',
+                          value: detail.professionalAvg.toStringAsFixed(1),
+                          icon: Icons.workspace_premium_outlined,
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    '暂无历史评价，当前综合评分基于信用分估算',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF8BA49A)),
+                  ),
+                ],
                 if (detail.certLabels.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   const Text(
@@ -174,14 +231,6 @@ Future<void> showProviderQualificationSheet(
                   ),
                 ),
                 const SizedBox(height: 10),
-                _InfoRow(
-                  label: '距离服务地址',
-                  value: '${detail.distanceKm.toStringAsFixed(1)} 公里',
-                ),
-                _InfoRow(
-                  label: '历史评价',
-                  value: '${detail.reviewCount} 条',
-                ),
                 if (detail.petName.isNotEmpty)
                   _InfoRow(label: '本次服务宠物', value: detail.petName),
                 if (detail.serviceItems.isNotEmpty)
